@@ -20,23 +20,23 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome (use modern keyring method)
-RUN wget -q -O /usr/share/keyrings/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
-      > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+# Install Google Chrome (using correct key format)
+RUN mkdir -p /usr/share/keyrings \
+ && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+ && apt-get update \
+ && apt-get install -y google-chrome-stable \
+ && rm -rf /var/lib/apt/lists/*
 
-# Build arg for ChromeDriver version (default set)
+# ChromeDriver version (update as needed)
 ARG CHROMEDRIVER_VERSION=119.0.6045.105
 
-# Install ChromeDriver for specified version
+# Install ChromeDriver
 RUN wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" \
-    && unzip /tmp/chromedriver.zip -d /tmp/ \
-    && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
-    && chmod +x /usr/local/bin/chromedriver \
-    && rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
+ && unzip /tmp/chromedriver.zip -d /tmp/ \
+ && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
+ && chmod +x /usr/local/bin/chromedriver \
+ && rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
 
 # Install Python dependencies
 COPY requirements.txt /app/requirements.txt
@@ -44,20 +44,20 @@ RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
 # Set up VNC
 RUN mkdir -p /root/.vnc \
-    && x11vnc -storepasswd "" /root/.vnc/passwd
+ && x11vnc -storepasswd "" /root/.vnc/passwd
 
 # Copy application files
 COPY . /app
 WORKDIR /app
 
-# Create supervisor config
+# Supervisor config
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports for your web and VNC services
+# Expose ports for web/VNC/noVNC
 EXPOSE 5000 6080
 
-# Set environment variables for display and Python
+# Set environment variables
 ENV DISPLAY=:99
 ENV PYTHONUNBUFFERED=1
 
