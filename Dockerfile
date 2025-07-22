@@ -10,17 +10,22 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     wget \
     curl \
+    git \
     gnupg \
     unzip \
     xvfb \
     x11vnc \
-    novnc \
     websockify \
     fluxbox \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome (using correct key format)
+# Install noVNC manually
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
+ && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
+ && ln -s /opt/novnc/vnc_lite.html /opt/novnc/index.html
+
+# Install Google Chrome using correct key method
 RUN mkdir -p /usr/share/keyrings \
  && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
  && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
@@ -28,7 +33,7 @@ RUN mkdir -p /usr/share/keyrings \
  && apt-get install -y google-chrome-stable \
  && rm -rf /var/lib/apt/lists/*
 
-# ChromeDriver version (update as needed)
+# ChromeDriver version (can be overridden with build-arg)
 ARG CHROMEDRIVER_VERSION=119.0.6045.105
 
 # Install ChromeDriver
@@ -54,7 +59,7 @@ WORKDIR /app
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports for web/VNC/noVNC
+# Expose ports for Flask and noVNC
 EXPOSE 5000 6080
 
 # Set environment variables
