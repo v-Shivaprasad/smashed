@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, jsonify, request
+from flask import Flask, render_template, jsonify, request
 import os
 import sys
 import threading
@@ -263,7 +263,7 @@ bot = RemoteSmashKartsBot()
 @app.route('/')
 def index():
     """Serve the main page"""
-    return render_template_string('index.html')
+    return render_template('index.html')
 
 @app.route('/vnc')
 def vnc():
