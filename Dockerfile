@@ -20,26 +20,23 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+# Install Google Chrome (use modern keyring method)
+RUN wget -q -O /usr/share/keyrings/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+      > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ChromeDriver
-# Set your desired fixed ChromeDriver version
-CHROMEDRIVER_VERSION=119.0.6045.105
+# Build arg for ChromeDriver version (default set)
+ARG CHROMEDRIVER_VERSION=119.0.6045.105
 
-# Download chromedriver for Linux x64 for that version
-wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip"
-
-# Unzip and install
-unzip /tmp/chromedriver.zip -d /tmp/
-mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
-chmod +x /usr/local/bin/chromedriver
-rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
-
+# Install ChromeDriver for specified version
+RUN wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" \
+    && unzip /tmp/chromedriver.zip -d /tmp/ \
+    && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
 
 # Install Python dependencies
 COPY requirements.txt /app/requirements.txt
@@ -57,12 +54,12 @@ WORKDIR /app
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports
+# Expose ports for your web and VNC services
 EXPOSE 5000 6080
 
-# Set environment variables
+# Set environment variables for display and Python
 ENV DISPLAY=:99
 ENV PYTHONUNBUFFERED=1
 
 # Start supervisor (manages all services)
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
