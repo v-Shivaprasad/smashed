@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  smash-karts-bot:
+    build: .
+    ports:
+      - "5000:5000"    # Flask app
+      - "6080:6080"    # noVNC web interface
+    volumes:
+      - ./logs:/var/log/supervisor
+    environment:
+      - DISPLAY=:99
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    shm_size: 2gb      # Shared memory for Chrome
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_ADMIN
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
