@@ -3,7 +3,6 @@ import os
 import sys
 import threading
 import time
-import subprocess
 import signal
 import logging
 from selenium import webdriver
@@ -23,57 +22,13 @@ class RemoteSmashKartsBot:
         self.driver = None
         self.bot_running = False
         self.bot_thread = None
-        self.vnc_process = None
-        self.websockify_process = None
-        self.setup_vnc()
-
-    def setup_vnc(self):
-        """Setup VNC server for remote display"""
-        try:
-            # Kill existing VNC sessions
-            os.system("vncserver -kill :1 2>/dev/null")
-
-            # Start VNC server
-            os.environ['DISPLAY'] = ':1'
-            vnc_command = [
-                'vncserver', ':1',
-                '-geometry', '1920x1080',
-                '-depth', '24',
-                '-SecurityTypes', 'None'
-            ]
-
-            self.vnc_process = subprocess.Popen(
-                vnc_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-
-            time.sleep(3)  # Wait for VNC to start
-
-            # Start websockify for noVNC
-            websockify_command = [
-                'websockify', '--web=/usr/share/novnc',
-                '6080', 'localhost:5901'
-            ]
-
-            self.websockify_process = subprocess.Popen(
-                websockify_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-
-            time.sleep(2)  # Wait for websockify to start
-            logger.info("✅ VNC and noVNC setup complete")
-
-        except Exception as e:
-            logger.error(f"❌ VNC setup failed: {e}")
 
     def setup_browser(self):
         """Setup Chrome browser for VNC display"""
         chrome_options = Options()
 
         # VNC display configuration
-        chrome_options.add_argument("--display=:1")
+        chrome_options.add_argument("--display=:99")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
@@ -115,7 +70,6 @@ class RemoteSmashKartsBot:
             return
 
         try:
-            # Focus on game
             body = self.driver.find_element(By.TAG_NAME, "body")
             actions = ActionChains(self.driver)
 
@@ -125,7 +79,6 @@ class RemoteSmashKartsBot:
                     cycle_count += 1
                     logger.info(f"🔄 Cycle {cycle_count}")
 
-                    # Movement pattern
                     movements = [
                         (Keys.ARROW_UP, 5, "Up"),
                         ((Keys.ARROW_UP, Keys.ARROW_LEFT), 5, "Up+Left"),
@@ -149,7 +102,6 @@ class RemoteSmashKartsBot:
                             actions.key_down(keys)
                         actions.perform()
 
-                        # Hold for duration
                         if not self._sleep_check(duration, description):
                             break
 
@@ -172,7 +124,6 @@ class RemoteSmashKartsBot:
             logger.info("🛑 Bot stopped")
 
     def _sleep_check(self, duration, action):
-        """Sleep while checking if bot should stop"""
         end_time = time.time() + duration
         while time.time() < end_time:
             if not self.bot_running:
@@ -181,10 +132,8 @@ class RemoteSmashKartsBot:
         return True
 
     def _release_all_keys(self):
-        """Release all keys"""
         if not self.driver:
             return
-
         try:
             actions = ActionChains(self.driver)
             for key in [Keys.ARROW_UP, Keys.ARROW_DOWN, Keys.ARROW_LEFT, Keys.ARROW_RIGHT, Keys.SPACE]:
@@ -194,7 +143,6 @@ class RemoteSmashKartsBot:
             logger.error(f"Error releasing keys: {e}")
 
     def start_bot(self):
-        """Start the bot"""
         if self.bot_running:
             return False, "Bot is already running"
 
@@ -212,7 +160,6 @@ class RemoteSmashKartsBot:
             return False, f"Failed to start bot: {e}"
 
     def stop_bot(self):
-        """Stop the bot"""
         if not self.bot_running:
             return False, "Bot is not running"
 
@@ -225,36 +172,15 @@ class RemoteSmashKartsBot:
             return False, f"Failed to stop bot: {e}"
 
     def get_status(self):
-        """Get current bot status"""
-        if self.bot_running:
-            return "running"
-        else:
-            return "idle"
+        return "running" if self.bot_running else "idle"
 
     def cleanup(self):
-        """Clean up all resources"""
         self.stop_bot()
-
         if self.driver:
             try:
                 self.driver.quit()
             except:
                 pass
-
-        # Kill VNC processes
-        if self.vnc_process:
-            try:
-                self.vnc_process.terminate()
-            except:
-                pass
-
-        if self.websockify_process:
-            try:
-                self.websockify_process.terminate()
-            except:
-                pass
-
-        os.system("vncserver -kill :1 2>/dev/null")
 
 # Global bot instance
 bot = RemoteSmashKartsBot()
@@ -262,20 +188,18 @@ bot = RemoteSmashKartsBot()
 # Routes
 @app.route('/')
 def index():
-    """Serve the main page"""
     return render_template('index.html')
 
 @app.route('/vnc')
 def vnc():
-    """Redirect to noVNC interface"""
-    return f"""
+    return """
     <!DOCTYPE html>
     <html>
     <head>
         <title>VNC Viewer</title>
         <style>
-            body {{ margin: 0; padding: 0; }}
-            iframe {{ width: 100%; height: 100vh; border: none; }}
+            body { margin: 0; padding: 0; }
+            iframe { width: 100%; height: 100vh; border: none; }
         </style>
     </head>
     <body>
@@ -286,7 +210,6 @@ def vnc():
 
 @app.route('/status')
 def status():
-    """Get bot status"""
     return jsonify({
         'status': bot.get_status(),
         'browser_active': bot.driver is not None
@@ -294,40 +217,27 @@ def status():
 
 @app.route('/start', methods=['POST'])
 def start():
-    """Start the bot"""
     success, message = bot.start_bot()
-    return jsonify({
-        'success': success,
-        'message': message
-    })
+    return jsonify({'success': success, 'message': message})
 
 @app.route('/stop', methods=['POST'])
 def stop():
-    """Stop the bot"""
     success, message = bot.stop_bot()
-    return jsonify({
-        'success': success,
-        'message': message
-    })
+    return jsonify({'success': success, 'message': message})
 
 @app.route('/restart', methods=['POST'])
 def restart():
-    """Restart the browser"""
     try:
         if bot.driver:
             bot.driver.quit()
             bot.driver = None
-
         success = bot.setup_browser()
         return jsonify({
             'success': success,
             'message': 'Browser restarted' if success else 'Failed to restart browser'
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Error restarting browser: {e}'
-        })
+        return jsonify({'success': False, 'message': str(e)})
 
 # Cleanup on exit
 def signal_handler(sig, frame):
@@ -340,7 +250,6 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 if __name__ == '__main__':
     try:
-        # Ensure VNC is setup
         logger.info("Starting Remote Smash Karts Bot Server...")
         app.run(host='0.0.0.0', port=5000, debug=False)
     except Exception as e:

@@ -1,10 +1,10 @@
-# Use Ubuntu base image with Python
+# Use Ubuntu base image
 FROM ubuntu:22.04
 
-# Avoid interactive prompts during package installation
+# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system packages
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -20,23 +20,25 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install noVNC manually
+# Install noVNC manually (from GitHub)
 RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
  && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify \
  && ln -s /opt/novnc/vnc_lite.html /opt/novnc/index.html
 
-# Install Google Chrome using correct key method
+# Install Google Chrome securely
 RUN mkdir -p /usr/share/keyrings \
- && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
- && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+ && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+    | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+    > /etc/apt/sources.list.d/google-chrome.list \
  && apt-get update \
  && apt-get install -y google-chrome-stable \
  && rm -rf /var/lib/apt/lists/*
 
-# ChromeDriver version (can be overridden with build-arg)
+# ChromeDriver version (customizable)
 ARG CHROMEDRIVER_VERSION=119.0.6045.105
 
-# Install ChromeDriver
+# Install matching ChromeDriver
 RUN wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" \
  && unzip /tmp/chromedriver.zip -d /tmp/ \
  && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
@@ -47,24 +49,24 @@ RUN wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chro
 COPY requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
-# Set up VNC
+# Configure VNC
 RUN mkdir -p /root/.vnc \
  && x11vnc -storepasswd "" /root/.vnc/passwd
 
-# Copy application files
+# Copy app files
 COPY . /app
 WORKDIR /app
 
-# Supervisor config
+# Supervisor logs
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports for Flask and noVNC
+# Expose web and VNC ports
 EXPOSE 5000 6080
 
 # Set environment variables
 ENV DISPLAY=:99
 ENV PYTHONUNBUFFERED=1
 
-# Start supervisor (manages all services)
+# Start supervisor
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

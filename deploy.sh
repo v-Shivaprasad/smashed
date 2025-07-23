@@ -1,72 +1,64 @@
 #!/bin/bash
 
 # Remote Smash Karts Bot Deployment Script
-echo "🎮 Deploying Remote Smash Karts Bot..."
 
-# Colors for output
+# Output formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
+print_status()    { echo -e "${GREEN}✅ $1${NC}"; }
+print_warning()   { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_error()     { echo -e "${RED}❌ $1${NC}"; }
+print_info()      { echo -e "${CYAN}➡️  $1${NC}"; }
 
-print_warning() {
-    echo -e "${YELLOW}⚠️ $1${NC}"
-}
+echo "${CYAN}🎮 Deploying Remote Smash Karts Bot...${NC}"
 
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-# Check if Docker is installed
+# Check Docker
 if ! command -v docker &> /dev/null; then
-    print_error "Docker is not installed. Please install Docker first."
+    print_error "Docker is not installed. Please install Docker."
     exit 1
 fi
 
-# Check if Docker Compose is installed
+# Check Docker Compose
 if ! command -v docker-compose &> /dev/null; then
-    print_error "Docker Compose is not installed. Please install Docker Compose first."
+    print_error "Docker Compose is not installed. Please install Docker Compose."
     exit 1
 fi
 
 # Create logs directory
 mkdir -p logs
 
-# Stop existing containers
+# Stop and remove old containers
 print_status "Stopping existing containers..."
 docker-compose down --remove-orphans
 
-# Build and start the containers
+# Build and start containers
 print_status "Building and starting containers..."
 docker-compose up --build -d
 
-# Wait for services to start
-print_status "Waiting for services to start..."
+# Wait for services to initialize
+print_info "Waiting for services to start..."
 sleep 10
 
-# Check if services are running
+# Check if the container is up
 if docker-compose ps | grep -q "Up"; then
     print_status "Deployment successful!"
-    echo ""
-    echo "🌐 Access your bot at:"
-    echo "   Main Interface: http://localhost:5000"
-    echo "   Direct VNC:     http://localhost:6080"
-    echo ""
-    echo "📋 Next steps:"
-    echo "1. Open http://localhost:5000 in your browser"
-    echo "2. Wait for the VNC interface to load"
-    echo "3. Navigate to smashkarts.io in the remote browser"
-    echo "4. Join a game manually"
-    echo "5. Click 'Start Bot' to begin automation"
-    echo ""
-    print_status "Bot is ready to use!"
+
+    echo -e "\n🌐 ${CYAN}Access your bot dashboard:${NC}"
+    echo "   📄 Flask Control UI : http://localhost:5000"
+    echo "   🖥️  VNC Interface    : http://localhost:6080/vnc.html"
+
+    echo -e "\n📋 ${CYAN}Next Steps:${NC}"
+    echo "1. Open http://localhost:5000"
+    echo "2. Click 'Open VNC' to view the remote browser"
+    echo "3. Join a Smash Karts game"
+    echo "4. Click 'Start Bot' to begin automation"
+    echo -e "\n🎯 ${GREEN}Bot is ready to race!${NC}"
 else
-    print_error "Deployment failed! Check the logs:"
+    print_error "Deployment failed! Logs below:"
     docker-compose logs
     exit 1
 fi
